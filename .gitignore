@@ -1,0 +1,28 @@
+# intellij idea
+.idea/
+
+# byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# unit test / coverage reports
+.pytest_cache/
+
+# environment
+venv*/
+
+# logs
+logs/
+
+# migrations
+migrations/
+
+# generated
+statistics/
+CHANGELOG.md
+
+# other
+secrets/
+exception_info*.txt
+temp*
