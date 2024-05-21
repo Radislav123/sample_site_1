@@ -6,23 +6,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# unit test / coverage reports
-.pytest_cache/
 
 # environment
 venv*/
 
-# logs
-logs/
-
-# migrations
-migrations/
 
 # generated
-statistics/
-CHANGELOG.md
+db.sqlite3
 
 # other
-secrets/
-exception_info*.txt
 temp*
