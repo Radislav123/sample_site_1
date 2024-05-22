@@ -24,11 +24,11 @@ y_axis = "Количество произведений"
 artist_dropdown_item_id_text = "artist_dropdown_item"
 artist_dropdown_item_ids = {x[1]: f"{artist_dropdown_item_id_text}_{x[1]}" for x in DB.get_artists()}
 artist_dropdown_ids = {value: key for key, value in artist_dropdown_item_ids.items()}
-artist_names = {artist_dropdown_item_ids[x[1]]: x[0] for x in DB.get_artists()}
+artist_names = {x[1]: x[0] for x in DB.get_artists()}
 album_dropdown_item_id_text = "album_dropdown_item"
 album_dropdown_item_ids = {x[1]: f"{album_dropdown_item_id_text}_{x[1]}" for x in DB.get_albums(None)}
 album_dropdown_ids = {value: key for key, value in album_dropdown_item_ids.items()}
-album_titles = {album_dropdown_item_ids[x[1]]: x[0] for x in DB.get_albums(None)}
+album_titles = {x[1]: x[0] for x in DB.get_albums(None)}
 
 artist_label_id = "artist_label_id"
 album_label_id = "album_label_id"
@@ -51,20 +51,26 @@ def get_artists_dropdown_items() -> list[dbc.DropdownMenuItem]:
     return children
 
 
-@callback(Output(album_dropdown_id, "children"), get_artist_dropdown_inputs())
 @functools.cache
-def get_album_dropdown_items(*_) -> list[dbc.DropdownMenuItem]:
-    context = dash.callback_context
-    trigger_id = context.triggered_id
-
-    if trigger_id is None:
-        artist_id = None
-    else:
-        artist_id = artist_dropdown_ids[trigger_id]
-
+def get_album_dropdown_items(artist_id: int | None) -> list[dbc.DropdownMenuItem]:
     data = DB.get_albums(artist_id)
     children = [dbc.DropdownMenuItem(x[0], album_dropdown_item_ids[x[1]]) for x in data]
     return children
+
+
+def get_trigger_id() -> tuple[int | None, int | None]:
+    context = dash.callback_context
+    trigger_id = context.triggered_id
+
+    artist_id = None
+    album_id = None
+
+    if trigger_id is not None:
+        if album_dropdown_item_id_text in trigger_id:
+            album_id = album_dropdown_ids[trigger_id]
+        elif artist_dropdown_item_id_text in trigger_id:
+            artist_id = artist_dropdown_ids[trigger_id]
+    return artist_id, album_id
 
 
 @callback(
@@ -77,16 +83,9 @@ def get_album_dropdown_items(*_) -> list[dbc.DropdownMenuItem]:
 @functools.cache
 def get_graph(*_) -> plotly.graph_objs.Figure:
     context = dash.callback_context
-    trigger_id = context.triggered_id
     inputs = {x["id"]: x for x in context.inputs_list}
 
-    artist_id = None
-    album_id = None
-    if trigger_id is not None:
-        if album_dropdown_item_id_text in trigger_id:
-            album_id = album_dropdown_ids[trigger_id]
-        elif artist_dropdown_item_id_text in trigger_id:
-            artist_id = artist_dropdown_ids[trigger_id]
+    artist_id, album_id = get_trigger_id()
 
     duration_step = inputs[duration_step_slider_id]["value"]
     threshold = inputs[threshold_slider_id]["value"]
@@ -100,29 +99,35 @@ def get_graph(*_) -> plotly.graph_objs.Figure:
     return figure
 
 
-@callback(Output(artist_label_id, "children"), get_artist_dropdown_inputs())
+@callback(
+    Output(artist_label_id, "children"),
+    get_artist_dropdown_inputs(),
+    get_album_dropdown_inputs(None)
+)
 @functools.cache
 def get_artist_label(*_) -> str:
-    context = dash.callback_context
-    trigger_id = context.triggered_id
+    artist_id, album_id = get_trigger_id()
 
-    if trigger_id is None:
+    if artist_id is None:
         artist = "Исполнитель"
     else:
-        artist = artist_names[trigger_id]
+        artist = artist_names[artist_id]
     return artist
 
 
-@callback(Output(album_label_id, "children"), get_album_dropdown_inputs(None))
+@callback(
+    Output(album_label_id, "children"),
+    get_artist_dropdown_inputs(),
+    get_album_dropdown_inputs(None)
+)
 @functools.cache
 def get_album_label(*_) -> str:
-    context = dash.callback_context
-    trigger_id = context.triggered_id
+    artist_id, album_id = get_trigger_id()
 
-    if trigger_id is None:
+    if album_id is None:
         album = "Альбом"
     else:
-        album = album_titles[trigger_id]
+        album = album_titles[album_id]
     return album
 
 
@@ -150,7 +155,7 @@ layout = [
         dbc.ButtonGroup(
             [
                 dbc.Button(id = album_label_id),
-                dbc.DropdownMenu(id = album_dropdown_id, group = True)
+                dbc.DropdownMenu(id = album_dropdown_id, children = get_album_dropdown_items(None), group = True)
             ]
         )
     )
