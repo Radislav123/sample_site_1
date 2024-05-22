@@ -13,6 +13,7 @@ title = "Количество произведений по длительнос
 dash.register_page(__name__, "/tracks_count_by_duration", name = title)
 
 graph_id = "graph_id"
+graph_option_id = "graph_option_id"
 duration_step_slider_id = "duration_step_slider_id"
 threshold_slider_id = "threshold_slider_id"
 artist_dropdown_id = "artist_dropdown_id"
@@ -32,6 +33,15 @@ album_titles = {x[1]: x[0] for x in DB.get_albums(None)}
 
 artist_label_id = "artist_label_id"
 album_label_id = "album_label_id"
+
+graph_types = {
+    "Линия": plotly.express.line,
+    "Столбик": plotly.express.bar,
+    "Диаграмма рассеяния": plotly.express.scatter,
+    "Диаграмма с областями": plotly.express.area,
+    "Воронка": plotly.express.funnel
+}
+graph_type_names = list(graph_types)
 
 
 @functools.cache
@@ -78,7 +88,8 @@ def get_trigger_id() -> tuple[int | None, int | None]:
     get_artist_dropdown_inputs(),
     get_album_dropdown_inputs(None),
     Input(duration_step_slider_id, "value"),
-    Input(threshold_slider_id, "value")
+    Input(threshold_slider_id, "value"),
+    Input(graph_option_id, "value")
 )
 @functools.cache
 def get_graph(*_) -> plotly.graph_objs.Figure:
@@ -86,16 +97,16 @@ def get_graph(*_) -> plotly.graph_objs.Figure:
     inputs = {x["id"]: x for x in context.inputs_list}
 
     artist_id, album_id = get_trigger_id()
-
-    duration_step = inputs[duration_step_slider_id]["value"]
+    duration_step = inputs[duration_step_slider_id]["value"] * 1000
     threshold = inputs[threshold_slider_id]["value"]
+    graph_type = graph_types[inputs[graph_option_id]["value"]]
 
     data = [{x_axis: (x[0] + 1) * duration_step // 1000, y_axis: x[1]}
             for x in DB.get_tracks_count_by_duration(artist_id, album_id, duration_step, threshold)]
     if len(data) == 0:
         data = [{x_axis: 0, y_axis: 0}]
 
-    figure = plotly.express.line(data, x_axis, y_axis, title = title)
+    figure = graph_type(data_frame = data, x = x_axis, y = y_axis, title = title)
     return figure
 
 
@@ -133,16 +144,19 @@ def get_album_label(*_) -> str:
 
 layout = [
     html.Div(dcc.Graph(id = graph_id)),
+    html.Br(),
     html.Div(
         [
             html.P("Шаг длительности:"),
-            dcc.Slider(id = duration_step_slider_id, min = 1000, max = 10000, value = 5000, step = 1000)]
+            dcc.Slider(id = duration_step_slider_id, min = 1, max = 10, value = 5, step = 1)]
     ),
+    html.Br(),
     html.Div(
         [
             html.P("Порог:"),
             dcc.Slider(id = threshold_slider_id, min = 0, max = 20, value = 0, step = 2)]
     ),
+    html.Br(),
     html.Div(
         dbc.ButtonGroup(
             [
@@ -151,6 +165,7 @@ layout = [
             ],
         )
     ),
+    html.Br(),
     html.Div(
         dbc.ButtonGroup(
             [
@@ -158,5 +173,7 @@ layout = [
                 dbc.DropdownMenu(id = album_dropdown_id, children = get_album_dropdown_items(None), group = True)
             ]
         )
-    )
+    ),
+    html.Br(),
+    html.Div(dbc.RadioItems(id = graph_option_id, options = graph_type_names, value = graph_type_names[0]))
 ]
