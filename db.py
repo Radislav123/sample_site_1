@@ -42,12 +42,13 @@ class DB:
     @staticmethod
     @functools.cache
     @get_cursor
-    def get_tracks_count_by_duration(duration_step: int, cursor: sqlite3.Cursor) -> list[tuple[int, int, int]]:
-        script = """SELECT Milliseconds, Milliseconds/? as duration_batch, COUNT(*) as count
+    def get_tracks_count_by_duration(duration_step: int, threshold: int, cursor: sqlite3.Cursor) -> list[tuple[int, int]]:
+        script = """SELECT Milliseconds/? as duration_batch, COUNT(*) as count
                     FROM Track
                     GROUP BY duration_batch
+                    HAVING count > ?
                     ORDER BY duration_batch;"""
-        data = cursor.execute(script, [duration_step]).fetchall()
+        data = cursor.execute(script, [duration_step, threshold]).fetchall()
         return data
 
 
