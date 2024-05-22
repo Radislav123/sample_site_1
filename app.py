@@ -19,9 +19,7 @@ def construct_app_layout() -> dbc.Container:
 
 def run() -> None:
     app = Dash(use_pages = True, external_stylesheets = [dbc.themes.BOOTSTRAP])
-
     app.layout = construct_app_layout()
-
     app.run(debug = True)
 
 
