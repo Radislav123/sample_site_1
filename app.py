@@ -5,7 +5,7 @@ from dash import Dash
 
 def construct_app_layout() -> dbc.Container:
     navigation_bar = dbc.NavbarSimple(
-        [dbc.NavItem(dbc.NavLink(page["name"], href = page["path"])) for page in dash.page_registry.values()],
+        [dbc.NavItem(dbc.NavLink(page["name"], href = page["path"])) for page in dash.page_registry.values()]
     )
 
     layout = dbc.Container(
