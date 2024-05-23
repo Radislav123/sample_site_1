@@ -1,5 +1,3 @@
-import functools
-
 import dash
 import dash_bootstrap_components as dbc
 import plotly.express
@@ -22,18 +20,6 @@ album_dropdown_id = "album_dropdown_id"
 x_axis = "Длительность в секундах"
 y_axis = "Количество произведений"
 
-artist_dropdown_item_id_text = "artist_dropdown_item"
-artist_dropdown_item_ids = {x[1]: f"{artist_dropdown_item_id_text}_{x[1]}" for x in DB.get_artists()}
-artist_dropdown_ids = {value: key for key, value in artist_dropdown_item_ids.items()}
-artist_names = {x[1]: x[0] for x in DB.get_artists()}
-album_dropdown_item_id_text = "album_dropdown_item"
-album_dropdown_item_ids = {x[1]: f"{album_dropdown_item_id_text}_{x[1]}" for x in DB.get_albums(None)}
-album_dropdown_ids = {value: key for key, value in album_dropdown_item_ids.items()}
-album_titles = {x[1]: x[0] for x in DB.get_albums(None)}
-
-artist_label_id = "artist_label_id"
-album_label_id = "album_label_id"
-
 graph_types = {
     "Линия": plotly.express.line,
     "Столбик": plotly.express.bar,
@@ -43,103 +29,72 @@ graph_types = {
 }
 graph_type_names = list(graph_types)
 
-
-@functools.cache
-def get_artist_dropdown_inputs() -> list[Input]:
-    return [Input(artist_dropdown_item_ids[x[1]], "n_clicks") for x in DB.get_artists()]
-
-
-@functools.cache
-def get_album_dropdown_inputs(artist_id: int | None) -> list[Input]:
-    return [Input(album_dropdown_item_ids[x[1]], "n_clicks") for x in DB.get_albums(artist_id)]
-
-
-@functools.cache
-def get_artists_dropdown_items() -> list[dbc.DropdownMenuItem]:
-    data = DB.get_artists()
-    children = [dbc.DropdownMenuItem(x[0], artist_dropdown_item_ids[x[1]]) for x in data]
-    return children
-
-
-@functools.cache
-def get_album_dropdown_items(artist_id: int | None) -> list[dbc.DropdownMenuItem]:
-    data = DB.get_albums(artist_id)
-    children = [dbc.DropdownMenuItem(x[0], album_dropdown_item_ids[x[1]]) for x in data]
-    return children
-
-
-def get_trigger_id() -> tuple[int | None, int | None]:
-    context = dash.callback_context
-    trigger_id = context.triggered_id
-
-    artist_id = None
-    album_id = None
-
-    if trigger_id is not None:
-        if album_dropdown_item_id_text in trigger_id:
-            album_id = album_dropdown_ids[trigger_id]
-        elif artist_dropdown_item_id_text in trigger_id:
-            artist_id = artist_dropdown_ids[trigger_id]
-    return artist_id, album_id
+DropdownItem = dict[str, int | None]
 
 
 @callback(
     Output(graph_id, "figure"),
-    get_artist_dropdown_inputs(),
-    get_album_dropdown_inputs(None),
+    Input(artist_dropdown_id, "value"),
+    Input(album_dropdown_id, "value"),
     Input(duration_step_slider_id, "value"),
     Input(threshold_slider_id, "value"),
     Input(graph_option_id, "value")
 )
-@functools.cache
-def get_graph(*_) -> plotly.graph_objs.Figure:
+def get_graph(
+        artist: DropdownItem | str,
+        album: DropdownItem | str,
+        duration_step: int,
+        threshold: int,
+        graph_type_name: str
+) -> plotly.graph_objs.Figure:
+    if isinstance(artist, dict):
+        artist_id = artist["value"]
+    elif artist.isnumeric():
+        artist_id = int(artist)
+    else:
+        artist_id = None
+
+    if isinstance(album, dict):
+        album_id = album["value"]
+    elif album.isnumeric():
+        album_id = int(album)
+    else:
+        album_id = None
+
     context = dash.callback_context
-    inputs = {x["id"]: x for x in context.inputs_list}
+    if context.triggered_id == artist_dropdown_id:
+        album_id = None
 
-    artist_id, album_id = get_trigger_id()
-    duration_step = inputs[duration_step_slider_id]["value"] * 1000
-    threshold = inputs[threshold_slider_id]["value"]
-    graph_type = graph_types[inputs[graph_option_id]["value"]]
-
+    duration_step = duration_step * 1000
     data = [{x_axis: (x[0] + 1) * duration_step // 1000, y_axis: x[1]}
             for x in DB.get_tracks_count_by_duration(artist_id, album_id, duration_step, threshold)]
     if len(data) == 0:
         data = [{x_axis: 0, y_axis: 0}]
 
-    figure = graph_type(data_frame = data, x = x_axis, y = y_axis, title = title)
+    figure = graph_types[graph_type_name](data_frame = data, x = x_axis, y = y_axis, title = title)
     return figure
 
 
-@callback(
-    Output(artist_label_id, "children"),
-    get_artist_dropdown_inputs(),
-    get_album_dropdown_inputs(None)
-)
-@functools.cache
-def get_artist_label(*_) -> str:
-    artist_id, album_id = get_trigger_id()
-
-    if artist_id is None:
-        artist = "Исполнитель"
-    else:
-        artist = artist_names[artist_id]
-    return artist
+def get_artist_dropdown_items() -> list[DropdownItem]:
+    artist_dropdown_items = [{"label": x[0], "value": x[1]} for x in DB.get_artists()]
+    artist_dropdown_items.insert(0, {"label": "Все исполнители", "value": None})
+    return artist_dropdown_items
 
 
 @callback(
-    Output(album_label_id, "children"),
-    get_artist_dropdown_inputs(),
-    get_album_dropdown_inputs(None)
+    Output(album_dropdown_id, "options"),
+    Output(album_dropdown_id, "value"),
+    Input(artist_dropdown_id, "value")
 )
-@functools.cache
-def get_album_label(*_) -> str:
-    artist_id, album_id = get_trigger_id()
-
-    if album_id is None:
-        album = "Альбом"
+def get_album_dropdown_items(artist: DropdownItem | int) -> tuple[list[DropdownItem], DropdownItem]:
+    if isinstance(artist, dict):
+        artist_id = artist["value"]
     else:
-        album = album_titles[album_id]
-    return album
+        artist_id = artist
+
+    album_dropdown_items = [{"label": x[0], "value": x[1]} for x in DB.get_albums(artist_id)]
+    album_dropdown_items.insert(0, {"label": "Все альбомы", "value": None})
+    return album_dropdown_items, album_dropdown_items[0]
 
 
 layout = [
@@ -158,22 +113,14 @@ layout = [
     ),
     html.Br(),
     html.Div(
-        dbc.ButtonGroup(
-            [
-                dbc.Button(id = artist_label_id),
-                dbc.DropdownMenu(id = artist_dropdown_id, children = get_artists_dropdown_items(), group = True)
-            ],
+        dbc.Select(
+            id = artist_dropdown_id,
+            options = get_artist_dropdown_items(),
+            value = get_artist_dropdown_items()[0]
         )
     ),
     html.Br(),
-    html.Div(
-        dbc.ButtonGroup(
-            [
-                dbc.Button(id = album_label_id),
-                dbc.DropdownMenu(id = album_dropdown_id, children = get_album_dropdown_items(None), group = True)
-            ]
-        )
-    ),
+    html.Div(dbc.Select(id = album_dropdown_id, value = get_album_dropdown_items(None)[0])),
     html.Br(),
     html.Div(dbc.RadioItems(id = graph_option_id, options = graph_type_names, value = graph_type_names[0]))
 ]
