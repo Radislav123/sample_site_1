@@ -22,9 +22,9 @@ y_axis = "Количество произведений"
 
 graph_types = {
     "Линия": plotly.express.line,
-    "Столбик": plotly.express.bar,
-    "Диаграмма рассеяния": plotly.express.scatter,
     "Диаграмма с областями": plotly.express.area,
+    "Диаграмма рассеяния": plotly.express.scatter,
+    "Столбик": plotly.express.bar,
     "Воронка": plotly.express.funnel
 }
 graph_type_names = list(graph_types)

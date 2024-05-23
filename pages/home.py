@@ -1,14 +1,8 @@
 import dash
-from dash import html
+from dash import dcc, html
 
 
-dash.register_page(__name__, "/", name = "Главная")
+dash.register_page(__name__, "/", name = "Главная", order = 0)
 
-# todo: rewrite it
-# todo: add Markdown?
-layout = html.Div(
-    [
-        html.H1("This is our Home page"),
-        html.Div("This is our Home page content.")
-    ]
-)
+with open("README.md", 'r', encoding = "utf-8") as file:
+    layout = html.Div(dcc.Markdown(file.read()))

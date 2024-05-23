@@ -1,7 +1,7 @@
 
 /*******************************************************************************
    Chinook Database - Version 1.4.5
-   Script: Chinook_Sqlite.sql
+   Script: chinook_sqlite.sql
    Description: Creates and populates the Chinook database.
    DB Server: Sqlite
    Author: Luis Rocha

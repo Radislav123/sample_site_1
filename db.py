@@ -3,11 +3,15 @@ import sqlite3
 from typing import Any, Callable
 
 
-script_path = "Chinook_Sqlite.sql"
 db_path = "db.sqlite3"
 
 
 class DB:
+    script_path = "chinook_sqlite.sql"
+    db_path = db_path
+    with open(script_path, 'r') as file:
+        script = "".join(file.readlines())
+
     @staticmethod
     def get_cursor(function: Callable) -> Callable:
         def wrapper(*args, **kwargs) -> Any:
@@ -20,12 +24,10 @@ class DB:
 
         return wrapper
 
-    @staticmethod
+    @classmethod
     @get_cursor
-    def recreate_db(cursor: sqlite3.Cursor) -> None:
-        with open(script_path, 'r') as file:
-            script = "".join(file.readlines())
-            cursor.executescript(script)
+    def recreate_db(cls, cursor: sqlite3.Cursor) -> None:
+        cursor.executescript(cls.script)
 
     @staticmethod
     @functools.cache
